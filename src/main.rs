@@ -9,7 +9,7 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 use plotters::prelude::*;
 const OUT_FILE_NAME: &str = "3d-plot.gif";
 fn main() -> Result<()> {
-    let (verticies, faces) = load_model("models/al.obj")?;
+    let (verticies, faces) = load_model("models/newell_teaset/teapot.obj")?;
     let [(sx, bx), (sy, by), (sz, bz)] = get_bounds(&verticies);
     let (cx, cy, cz) = ((bx + sx) / 2.0, (by + sy) / 2.0, (bz + sz) / 2.0);
     let max_dim = (bx - sx).max(by - sy).max(bz - sz) / 2.0;
@@ -30,14 +30,21 @@ fn main() -> Result<()> {
 
     let area = BitMapBackend::gif(OUT_FILE_NAME, (600, 400), 16)?.into_drawing_area();
 
+    let mut chart = ChartBuilder::on(&area)
+        .caption("mesh-rand test", ("sans", 20))
+        .build_cartesian_3d(x_axis, y_axis, z_axis)?;
+
+    let point_series = points
+        .iter()
+        .map(|&(x, y, z)| Circle::new((x, y, z), 1.2, BLUE.filled()));
+
     for i in (0..360).progress() {
         area.fill(&WHITE)?;
-        let mut chart = ChartBuilder::on(&area)
-            .caption("mesh-rand test", ("sans", 20))
-            .build_cartesian_3d(x_axis.clone(), y_axis.clone(), z_axis.clone())?;
 
         chart.with_projection(|mut pb| {
-            pb.yaw = i as f64 * PI / 180.0;
+            let s = i as f64 * PI / 180.0;
+            pb.yaw = s;
+            pb.pitch = s.sin() * 0.2 + 0.25;
             pb.scale = 0.9;
             pb.into_matrix()
         });
@@ -48,18 +55,13 @@ fn main() -> Result<()> {
             .max_light_lines(3)
             .draw()?;
 
-        let point_series = points
-            .iter()
-            .map(|&(x, y, z)| Circle::new((x, y, z), 1.2, BLUE.filled()));
+        chart.draw_series(point_series.clone())?;
+        //     .label("Surface")
+        //     .legend(|(x, y)| {
+        //         Rectangle::new([(x + 5, y - 5), (x + 15, y + 5)], BLUE.mix(0.5).filled())
+        //     });
 
-        chart
-            .draw_series(point_series)?
-            .label("Surface")
-            .legend(|(x, y)| {
-                Rectangle::new([(x + 5, y - 5), (x + 15, y + 5)], BLUE.mix(0.5).filled())
-            });
-
-        chart.configure_series_labels().border_style(BLACK).draw()?;
+        // chart.configure_series_labels().border_style(BLACK).draw()?;
 
         // To avoid the IO failure being ignored silently, we manually call the present function
         area.present().expect("Unable to write result to file, please make sure 'plotters-doc-data' dir exists under current dir");
