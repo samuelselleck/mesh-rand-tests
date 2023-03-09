@@ -11,3 +11,4 @@ mesh-rand = { path = "../mesh-rand" }
 mint = "0.5.9"
 plotters = "0.3.4"
 rand = "0.8.5"
+tobj = "3.2.4"
