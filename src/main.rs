@@ -2,8 +2,7 @@
 use std::f64::consts::PI;
 
 use indicatif::ProgressIterator;
-use mesh_rand::{SurfSample, UniformSurface};
-use rand::distributions::Distribution;
+use mesh_rand::PoissonDiskSurface;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 use plotters::prelude::*;
@@ -16,18 +15,19 @@ fn main() -> Result<()> {
     let x_axis = ((cx - max_dim)..(cx + max_dim)).step(max_dim / 10.0);
     let y_axis = ((cy - max_dim)..(cy + max_dim)).step(max_dim / 10.0);
     let z_axis = ((cz - max_dim)..(cz + max_dim)).step(max_dim / 10.0);
-    let mesh_dist = UniformSurface::new(&verticies, &faces)?;
+
+    let mesh_dist = PoissonDiskSurface::new(&verticies, &faces)?;
     let mut rng = rand::thread_rng();
 
     println!("verts: {}, faces: {}", verticies.len(), faces.len());
 
-    let points: Vec<_> = (0..3000)
-        .map(|_| {
-            let SurfSample { position: p, .. } = mesh_dist.sample(&mut rng);
-            (p[0] as f64, p[1] as f64, p[2] as f64)
-        })
+    let points: Vec<[f64; 3]> = mesh_dist
+        .sample_naive(0.1, 10000, 10000, &mut rng)
+        .iter()
+        .map(|p| p.map(|v| v as f64))
         .collect();
 
+    println!("point count: {}", points.len());
     let area = BitMapBackend::gif(OUT_FILE_NAME, (600, 400), 16)?.into_drawing_area();
 
     let mut chart = ChartBuilder::on(&area)
@@ -36,7 +36,7 @@ fn main() -> Result<()> {
 
     let point_series = points
         .iter()
-        .map(|&(x, y, z)| Circle::new((x, y, z), 1.2, BLUE.filled()));
+        .map(|&[x, y, z]| Circle::new((x, y, z), 1.2, BLUE.filled()));
 
     for i in (0..360).progress() {
         area.fill(&WHITE)?;
